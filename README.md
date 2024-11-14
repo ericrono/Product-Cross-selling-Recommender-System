@@ -42,8 +42,12 @@ This section cleans and prepares the data for further analysis. Typical preproce
 ### 4. Exploratory Data Analysis (EDA)
 In the EDA section, the notebook examines relationships within the data, especially focusing on:
 - **Age Distributions**: Age distribution of investors and beneficiaries.
+![alt text](image-1.png)
 - **Town Distribution**: Count of investors per town.
+![alt text](image-2.png)
 - **Investment Product Preferences**: Analysis of the most popular products by age group.
+![alt text](image-3.png)
+
 
 The notebook uses bar plots, histograms, and scatter plots to visualize these relationships, providing insights into potential cross-selling opportunities based on demographic patterns.
 

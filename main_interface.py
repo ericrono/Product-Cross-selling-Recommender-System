@@ -111,10 +111,19 @@ def load_new_customer_data():
             10.67, 11.07
         ]
     }
+    dollar_funds = {
+        'Provider': ['NCBA', 'CIC', 'Jubilee'],
+        'Rate': [3.98, 5.0, 5.79]
+    }
     
-    return pd.DataFrame(mmf_data), pd.DataFrame(sacco_data)
+    fixed_deposits = {
+        'Provider': ['NCBA', 'CIC', 'Jubilee', 'Madison', 'Sanlam'],
+        'Rate': [11.65, 12.0, 15.56, 13.0, 17.6]
+    }
+    
+    return pd.DataFrame(mmf_data), pd.DataFrame(sacco_data),pd.DataFrame(dollar_funds),pd.DataFrame(fixed_deposits)
 # Retrieve the data for new customer market
-mmf_data, sacco_data = load_new_customer_data()
+mmf_data, sacco_data,dollar_funds, fixed_deposits = load_new_customer_data()
 
 def get_recommendations_with_messages(member_features, df, member_data, n=5):
     """
@@ -227,24 +236,48 @@ def calculate_risk_score(answers):
     
     return score
 
-def get_investment_recommendations(risk_score, investment_amount):
+# def get_investment_recommendations(risk_score, investment_amount,currency, loan_access):
     """
     Get investment recommendations for new customers based on risk score
     """
     recommendations = []
+    # Dynamic selection of top 2 MMFs and SACCOs
+    top_2_mmf = mmf_data.nlargest(2, 'Return')
+    top_2_saccos = sacco_data.nlargest(2, 'Total_Assets')
     
+    # Currency-specific recommendations
+    if currency == 'USD':
+        top_2_dollar_funds = dollar_funds.nlargest(2, 'Rate')
+        recommendations.append({
+            'product': 'Dollar Funds',
+            'allocation': 50,
+            'description': 'USD Investment with top-performing providers',
+            'recommended_providers': top_2_dollar_funds['Provider'].tolist()
+        })
+    
+    # Loan access recommendations
+    if loan_access:
+        recommendations.append({
+            'product': 'SACCOs',
+            'allocation': 30,
+            'description': 'Loan access with top SACCOs',
+            'recommended_providers': top_2_saccos['Name'].tolist()
+        })
     if risk_score <= 5:  # Very Conservative
         recommendations.append({
             'product': 'Money Market Funds',
             'allocation': 70,
             'description': 'Low risk, high liquidity, suitable for emergency funds',
-            'recommended_providers': ['Cytonn MMF', 'Lofty Goshan MMF']
+            # 'recommended_providers': ['Cytonn MMF', 'Lofty Goshan MMF']
+            'recommended_providers': top_2_mmf['Fund'].tolist()
         })
+        top_2_fixed_deposits = fixed_deposits.nlargest(2, 'Rate')
         recommendations.append({
             'product': 'Fixed Deposits',
             'allocation': 30,
             'description': 'Low risk, stable returns, limited liquidity',
-            'recommended_providers': ['Top tier banks']
+            #'recommended_providers': ['Top tier banks']
+            'recommended_providers': top_2_fixed_deposits['Provider'].tolist()
         })
     
     elif risk_score <= 8:  # Conservative
@@ -309,6 +342,251 @@ def get_investment_recommendations(risk_score, investment_amount):
     
     return recommendations
 
+# def get_investment_recommendations(risk_score, investment_amount, currency, loan_access):
+    """
+    Get investment recommendations based on risk score, investment amount, currency, and loan needs
+    """
+    recommendations = []
+    
+    # Dynamic selection of top 2 MMFs and SACCOs
+    top_2_mmf = mmf_data.nlargest(2, 'Return')
+    top_2_saccos = sacco_data.nlargest(2, 'Total_Assets')
+    top_2_fixed_deposits = fixed_deposits.nlargest(2, 'Rate')
+    top_2_dollar_funds = dollar_funds.nlargest(2, 'Rate')
+
+    # Currency-specific recommendations
+    if currency == 'USD':
+        recommendations.append({
+            'product': 'Dollar Funds',
+            'allocation': 50,
+            'description': 'USD Investment with top-performing providers',
+            'recommended_providers': top_2_dollar_funds['Provider'].tolist()
+        })
+    
+    # Loan access recommendations
+    if loan_access:
+        recommendations.append({
+            'product': 'SACCOs',
+            'allocation': 30,
+            'description': 'Loan access with top SACCOs',
+            'recommended_providers': top_2_saccos['Name'].tolist()
+        })
+    
+    # Very Conservative Risk Profile (risk_score <= 5)
+    if risk_score <= 5:
+        recommendations.append({
+            'product': 'Money Market Funds',
+            'allocation': 70,
+            'description': 'Low risk, high liquidity with top-performing funds',
+            'recommended_providers': top_2_mmf['Fund'].tolist()
+        })
+        recommendations.append({
+            'product': 'Fixed Deposits',
+            'allocation': 30,
+            'description': 'Low risk, stable returns',
+            'recommended_providers': top_2_fixed_deposits['Provider'].tolist()
+        })
+    
+    # Conservative Risk Profile (5 < risk_score <= 8)
+    elif risk_score <= 8:
+        recommendations.append({
+            'product': 'Money Market Funds',
+            'allocation': 50,
+            'description': 'Low risk, high liquidity',
+            'recommended_providers': top_2_mmf['Fund'].tolist()
+        })
+        recommendations.append({
+            'product': 'SACCOs',
+            'allocation': 30,
+            'description': 'Moderate risk, community-based investments',
+            'recommended_providers': top_2_saccos['Name'].tolist()
+        })
+        recommendations.append({
+            'product': 'Government Bonds',
+            'allocation': 20,
+            'description': 'Low risk, fixed income',
+            'recommended_providers': ['Treasury Direct']
+        })
+    
+    # Balanced Risk Profile (8 < risk_score <= 12)
+    elif risk_score <= 12:
+        recommendations.append({
+            'product': 'Money Market Funds',
+            'allocation': 30,
+            'description': 'Low risk emergency fund allocation',
+            'recommended_providers': top_2_mmf['Fund'].tolist()
+        })
+        recommendations.append({
+            'product': 'SACCOs',
+            'allocation': 30,
+            'description': 'Moderate risk community investments, loan access',
+            'recommended_providers': top_2_saccos['Name'].tolist()
+        })
+        recommendations.append({
+            'product': 'Equity Funds',
+            'allocation': 40,
+            'description': 'Higher risk, growth potential',
+            'recommended_providers': ['Top performing equity funds']
+        })
+    
+    # Aggressive Risk Profile (risk_score > 12)
+    else:
+        recommendations.append({
+            'product': 'Equity Funds',
+            'allocation': 60,
+            'description': 'High risk, high potential returns',
+            'recommended_providers': ['Leading equity funds']
+        })
+        recommendations.append({
+            'product': 'Fixed Deposits',
+            'allocation': 30,
+            'description': 'Liquidity buffer',
+            'recommended_providers': top_2_fixed_deposits['Provider'].tolist()
+        })
+        recommendations.append({
+            'product': 'Dollar Funds',
+            'allocation': 10,
+            'description': 'Currency diversification',
+            'recommended_providers': top_2_dollar_funds['Provider'].tolist()
+        })
+    
+    return recommendations
+
+
+def get_investment_recommendations(risk_score, investment_amount, currency, loan_access):
+    """
+    Get investment recommendations based on risk score, investment amount, currency, and loan needs
+    """
+    recommendations = []
+    products_recommended = set()
+    
+    # Dynamic selection of top 2 MMFs and SACCOs
+    top_2_mmf = mmf_data.nlargest(2, 'Return')
+    top_2_saccos = sacco_data.nlargest(2, 'Total_Assets')
+    top_2_fixed_deposits = fixed_deposits.nlargest(2, 'Rate')
+    top_2_dollar_funds = dollar_funds.nlargest(2, 'Rate')
+
+    # Currency-specific recommendations
+    if currency == 'USD' and 'Dollar Funds' not in products_recommended:
+        recommendations.append({
+            'product': 'Dollar Funds',
+            'allocation': 50,
+            'description': 'USD Investment with top-performing providers',
+            'recommended_providers': top_2_dollar_funds['Provider'].tolist()
+        })
+        products_recommended.add('Dollar Funds')
+    
+    # Loan access recommendations
+    if loan_access and 'SACCOs' not in products_recommended:
+        recommendations.append({
+            'product': 'SACCOs',
+            'allocation': 30,
+            'description': 'Loan access with top SACCOs',
+            'recommended_providers': top_2_saccos['Name'].tolist()
+        })
+        products_recommended.add('SACCOs')
+    
+    # Very Conservative Risk Profile (risk_score <= 5)
+    if risk_score <= 5:
+        if 'Money Market Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Money Market Funds',
+                'allocation': 70,
+                'description': 'Low risk, high liquidity with top-performing funds',
+                'recommended_providers': top_2_mmf['Fund'].tolist()
+            })
+            products_recommended.add('Money Market Funds')
+        if 'Fixed Deposits' not in products_recommended:
+            recommendations.append({
+                'product': 'Fixed Deposits',
+                'allocation': 30,
+                'description': 'Low risk, stable returns',
+                'recommended_providers': top_2_fixed_deposits['Provider'].tolist()
+            })
+            products_recommended.add('Fixed Deposits')
+    
+    # Conservative Risk Profile (5 < risk_score <= 8)
+    elif risk_score <= 8:
+        if 'Money Market Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Money Market Funds',
+                'allocation': 50,
+                'description': 'Low risk, high liquidity',
+                'recommended_providers': top_2_mmf['Fund'].tolist()
+            })
+            products_recommended.add('Money Market Funds')
+        if 'SACCOs' not in products_recommended:
+            recommendations.append({
+                'product': 'SACCOs',
+                'allocation': 30,
+                'description': 'Moderate risk, community-based investments',
+                'recommended_providers': top_2_saccos['Name'].tolist()
+            })
+            products_recommended.add('SACCOs')
+        if 'Government Bonds' not in products_recommended:
+            recommendations.append({
+                'product': 'Government Bonds',
+                'allocation': 20,
+                'description': 'Low risk, fixed income',
+                'recommended_providers': ['Treasury Direct']
+            })
+            products_recommended.add('Government Bonds')
+    
+    # Balanced Risk Profile (8 < risk_score <= 12)
+    elif risk_score <= 12:
+        if 'Money Market Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Money Market Funds',
+                'allocation': 30,
+                'description': 'Low risk emergency fund allocation',
+                'recommended_providers': top_2_mmf['Fund'].tolist()
+            })
+            products_recommended.add('Money Market Funds')
+        if 'SACCOs' not in products_recommended:
+            recommendations.append({
+                'product': 'SACCOs',
+                'allocation': 30,
+                'description': 'Moderate risk community investments, loan access',
+                'recommended_providers': top_2_saccos['Name'].tolist()
+            })
+            products_recommended.add('SACCOs')
+        if 'Equity Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Equity Funds',
+                'allocation': 40,
+                'description': 'Higher risk, growth potential',
+                'recommended_providers': ['Top performing equity funds']
+            })
+            products_recommended.add('Equity Funds')
+    
+    # Aggressive Risk Profile (risk_score > 12)
+    else:
+        if 'Equity Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Equity Funds',
+                'allocation': 60,
+                'description': 'High risk, high potential returns',
+                'recommended_providers': ['Leading equity funds']
+            })
+            products_recommended.add('Equity Funds')
+        if 'Fixed Deposits' not in products_recommended:
+            recommendations.append({
+                'product': 'Fixed Deposits',
+                'allocation': 30,
+                'description': 'Liquidity buffer',
+                'recommended_providers': top_2_fixed_deposits['Provider'].tolist()
+            })
+            products_recommended.add('Fixed Deposits')
+        if 'Dollar Funds' not in products_recommended:
+            recommendations.append({
+                'product': 'Dollar Funds',
+                'allocation': 10,
+                'description': 'Currency diversification',
+                'recommended_providers': top_2_dollar_funds['Provider'].tolist()
+            })
+            products_recommended.add('Dollar Funds')
+    
+    return recommendations
 def show_existing_customer_interface():
     """
     Display interface for existing customers
@@ -461,7 +739,10 @@ def show_new_customer_interface():
                     "How long do you plan to invest?",
                     ["Less than 1 year", "1-3 years", "3-5 years", "More than 5 years"]
                 )
-                
+                currency = st.selectbox(
+                    "Which currency do you want to invest in?",
+                    ["KES", "USD"]
+                )
                 emergency_fund = st.radio(
                     "Is this an emergency fund account?",
                     ["Yes", "No"]
@@ -477,6 +758,10 @@ def show_new_customer_interface():
                 risk_appetite = st.select_slider(
                     "What is your risk appetite?",
                     options=["Very Low", "Low", "Medium", "High", "Very High"]
+                )
+
+                loan_access = st.checkbox(
+                    "Do you want access to loans?"
                 )
                 
                 investment_knowledge = st.select_slider(
@@ -495,7 +780,7 @@ def show_new_customer_interface():
                 }
                 
                 risk_score = calculate_risk_score(answers)
-                recommendations = get_investment_recommendations(risk_score, investment_amount)
+                recommendations = get_investment_recommendations(risk_score, investment_amount,currency,loan_access)
                 
                 st.success("Based on your profile, here are our recommendations:")
                 
